@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Hospital RP — Horas por Profissional</title>
+<style>
+  :root{
+    --green:#10b981; --green-2:#059669; --bg:#ffffff; --muted:#f8fafc;
+    --text:#0f172a; --sub:#64748b; --border:#e5e7eb;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,system-ui,Roboto,Arial;color:var(--text);background:var(--bg)}
+  header{padding:16px;border-bottom:1px solid var(--border);background:linear-gradient(90deg,#ecfdf5,#fff)}
+  h1{margin:0;font-size:20px}
+  .container{max-width:1200px;margin:16px auto;padding:0 16px}
+  .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  .btn{border:1px solid var(--green);background:var(--green);color:#fff;padding:9px 12px;border-radius:10px;font-weight:600;cursor:pointer}
+  .btn:hover{background:var(--green-2);border-color:var(--green-2)}
+  .btn.secondary{background:#fff;color:var(--green)}
+  .btn.danger{background:#ef4444;border-color:#ef4444}
+  .pill{border:1px solid var(--border);background:#fff;border-radius:999px;padding:6px 10px;color:var(--sub)}
+  .card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px}
+  .tabs{display:flex;gap:8px;overflow:auto}
+  .tab{border:1px solid var(--border);background:#fff;border-radius:999px;padding:8px 12px;cursor:pointer;white-space:nowrap}
+  .tab.active{background:#ecfdf5;border-color:var(--green);color:#065f46;font-weight:700}
+  .grid{display:grid;gap:16px}
+  @media(min-width:980px){ .grid{grid-template-columns:2fr 1fr} }
+
+  /* tabela */
+  table{width:100%;border-collapse:separate;border-spacing:0;border:1px solid var(--border);border-radius:12px;overflow:hidden}
+  thead th{background:#ecfdf5;color:#065f46;text-align:left;padding:10px;border-bottom:1px solid var(--border);font-size:14px}
+  tbody td{padding:8px 10px;border-bottom:1px solid var(--border)}
+  tbody tr:last-child td{border-bottom:none}
+  input,select{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:#fff}
+  .badge{display:inline-block;padding:4px 8px;background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;border-radius:8px;font-variant-numeric:tabular-nums}
+  .right{display:flex;gap:8px;margin-left:auto}
+  .small{font-size:12px;color:var(--sub)}
+  .list{display:flex;flex-direction:column;gap:8px;max-height:260px;overflow:auto}
+  .chip{display:flex;justify-content:space-between;align-items:center;padding:10px;border:1px solid var(--border);border-radius:10px;background:var(--muted)}
+  .hr{height:1px;background:var(--border);margin:12px 0}
+</style>
+</head>
+<body>
+  <header>
+    <div class="row">
+      <h1>Registo de Horas- Hospitall de PillBox</h1>
+      <div class="right">
+        <button class="btn secondary" id="addProfBtn">+ Novo Profissional</button>
+        <button class="btn secondary" id="addMonthBtn" title="Adicionar mês à aba ativa">+ Nova Aba (Mês)</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="container">
+
+    <!-- Abas de profissionais -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="row" style="justify-content:space-between">
+        <div>
+          <div class="small" style="margin-bottom:6px">Profissionais</div>
+          <div id="profTabs" class="tabs"></div>
+        </div>
+        <div class="right">
+          <button class="btn danger" id="removeProfBtn" title="Remover profissional ativo">Remover Profissional</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <!-- Registos -->
+      <div class="card">
+        <div class="row" style="justify-content:space-between;margin-bottom:10px">
+          <div>
+            <div class="small" style="margin-bottom:6px">Meses</div>
+            <div id="monthTabs" class="tabs"></div>
+          </div>
+          <div class="right">
+            <button class="btn" id="addRowBtn">+ Adicionar Registo</button>
+            <button class="btn secondary" id="exportCsvBtn">Exportar CSV</button>
+            <button class="btn danger" id="clearMonthBtn">Limpar Mês</button>
+          </div>
+        </div>
+
+        <div style="overflow:auto">
+          <table>
+            <thead>
+              <tr>
+                <th style="min-width:120px">Data</th>
+                <th style="min-width:120px">Entrada</th>
+                <th style="min-width:120px">Saída</th>
+                <th style="min-width:120px">Tempo</th>
+                <th style="min-width:120px;text-align:right">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Painel direito -->
+      <div class="card">
+        <h3 style="margin:0 0 8px 0">Dados do Profissional</h3>
+        <div class="list" id="profMeta"></div>
+
+        <div class="hr"></div>
+
+        <h3 style="margin:0 0 8px 0">Resumos</h3>
+        <div class="list">
+          <div class="chip">
+            <div><strong>Total Mensal</strong><div class="small" id="sumMensalMeta"></div></div>
+            <span class="badge" id="sumMensal">0h 00m</span>
+          </div>
+          <div class="chip">
+            <div><strong>Total Semanal</strong>
+              <div class="row" style="gap:6px;margin-top:6px">
+                <select id="filterWeek"></select>
+                <span class="small">Seleciona semana para ver total</span>
+              </div>
+            </div>
+            <span class="badge" id="sumSemanal">0h 00m</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:12px">
+      <h3 style="margin:0 0 8px 0">Gestão de Profissionais</h3>
+      <div class="row" style="gap:8px; margin-bottom:8px">
+        <input id="inNome" placeholder="Nome (ex.: Enf. / Dr. …)">
+        <input id="inId" placeholder="Identificador (ex.: 1203)">
+        <input id="inPatente" placeholder="Patente (opcional)">
+        <button class="btn" id="saveProfBtn">Guardar/Atualizar</button>
+      </div>
+      <div class="small"></div>
+    </div>
+
+  </div>
+
+<script>
+/* =======================
+   Estado + Persistência
+======================= */
+const LS_KEY='hospital-rp-horas-v3';
+let state = load() || { profs:{}, order:[] }; // profs[id] = {nome, id, patente, meses:{'YYYY-MM':{rows:[]}}}
+function save(){ localStorage.setItem(LS_KEY, JSON.stringify(state)); }
+function load(){ try{ return JSON.parse(localStorage.getItem(LS_KEY)); }catch(e){ return null; }}
+
+/* =======================
+   Utilitários de tempo
+======================= */
+function toYMD(d){ return d.toISOString().slice(0,10); }
+function ymKey(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
+function labelMes(key){
+  const [y,m]=key.split('-').map(Number); const dt=new Date(y,m-1,1);
+  const nomes=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  return `${nomes[dt.getMonth()]} ${dt.getFullYear()}`;
+}
+function normTime(v){ if(!v) return ''; const [h,m]=(v+'').split(':'); return `${String(h).padStart(2,'0')}:${String((m||'0')).padStart(2,'0')}`; }
+function duracaoMin(ent, sai){
+  if(!ent||!sai) return 0;
+  const [h1,m1]=normTime(ent).split(':').map(Number);
+  const [h2,m2]=normTime(sai).split(':').map(Number);
+  let t=(h2*60+m2)-(h1*60+m1);
+  if(t<0) t+=24*60; // atravessou 00:00
+  return t;
+}
+function fmtMin(min){ const h=Math.floor(min/60), m=min%60; return `${h}h ${String(m).padStart(2,'0')}m`; }
+function isoWeek(dStr){
+  const d=new Date(dStr+'T00:00:00');
+  const date=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));
+  const dayNum=date.getUTCDay()||7;
+  date.setUTCDate(date.getUTCDate()+4-dayNum);
+  const yearStart=new Date(Date.UTC(date.getUTCFullYear(),0,1));
+  const weekNo=Math.ceil((((date-yearStart)/86400000)+1)/7);
+  return `${date.getUTCFullYear()}-W${String(weekNo).padStart(2,'0')}`;
+}
+
+/* =======================
+   Elementos
+======================= */
+const profTabs=document.getElementById('profTabs');
+const monthTabs=document.getElementById('monthTabs');
+const tbody=document.getElementById('tbody');
+const sumMensal=document.getElementById('sumMensal');
+const sumMensalMeta=document.getElementById('sumMensalMeta');
+const sumSemanal=document.getElementById('sumSemanal');
+const filterWeek=document.getElementById('filterWeek');
+const profMeta=document.getElementById('profMeta');
+
+const addProfBtn=document.getElementById('addProfBtn');
+const removeProfBtn=document.getElementById('removeProfBtn');
+const addMonthBtn=document.getElementById('addMonthBtn');
+const addRowBtn=document.getElementById('addRowBtn');
+const exportCsvBtn=document.getElementById('exportCsvBtn');
+const clearMonthBtn=document.getElementById('clearMonthBtn');
+
+const inNome=document.getElementById('inNome');
+const inId=document.getElementById('inId');
+const inPatente=document.getElementById('inPatente');
+const saveProfBtn=document.getElementById('saveProfBtn');
+
+/* =======================
+   Estado da UI
+======================= */
+let activeProf=null;      // id do profissional
+let activeMonth=null;     // 'YYYY-MM'
+
+const startMonth=new Date(2025,10,1); // Novembro 2025
+
+function ensureProf(id){
+  if(!state.profs[id]){
+    state.profs[id]={ nome:'', id, patente:'', meses:{} };
+    const first=ymKey(startMonth);
+    state.profs[id].meses[first]={ rows:[] };
+    state.order.push(id);
+  }
+}
+function ensureMonthForProf(id, ym){
+  ensureProf(id);
+  if(!state.profs[id].meses[ym]) state.profs[id].meses[ym]={ rows:[] };
+}
+
+/* =======================
+   Render de Abas
+======================= */
+function renderProfTabs(){
+  profTabs.innerHTML='';
+  if(!state.order.length){
+    const hint=document.createElement('div');
+    hint.className='small';
+    hint.textContent='Sem profissionais. Usa "Novo Profissional" para criar.';
+    profTabs.appendChild(hint);
+    activeProf=null; monthTabs.innerHTML=''; tbody.innerHTML='';
+    sumMensal.textContent='0h 00m'; sumMensalMeta.textContent='';
+    sumSemanal.textContent='0h 00m'; filterWeek.innerHTML='';
+    profMeta.innerHTML='';
+    return;
+  }
+  state.order.forEach(id=>{
+    const p=state.profs[id];
+    const btn=document.createElement('button');
+    btn.className='tab'+(id===activeProf?' active':'');
+    btn.textContent= p.nome ? `${p.nome} · ${p.id}` : `(sem nome) · ${p.id}`;
+    btn.onclick=()=>{ setActiveProf(id); };
+    profTabs.appendChild(btn);
+  });
+}
+function setActiveProf(id){
+  activeProf=id;
+  // escolher mês ativo (o 1º se não houver)
+  const keys=Object.keys(state.profs[id].meses).sort();
+  activeMonth = keys[0] || ymKey(startMonth);
+  renderProfTabs(); renderMonthTabs(); renderMeta(); renderRows(); refreshWeeks(); recomputeSums(); save();
+}
+function renderMonthTabs(){
+  monthTabs.innerHTML='';
+  if(!activeProf) return;
+  Object.keys(state.profs[activeProf].meses).sort().forEach(key=>{
+    const btn=document.createElement('button');
+    btn.className='tab'+(key===activeMonth?' active':'');
+    btn.textContent=labelMes(key);
+    btn.onclick=()=>{ activeMonth=key; renderMonthTabs(); renderRows(); refreshWeeks(); recomputeSums(); };
+    monthTabs.appendChild(btn);
+  });
+}
+
+/* =======================
+   Meta do Profissional
+======================= */
+function renderMeta(){
+  if(!activeProf){ profMeta.innerHTML=''; return; }
+  const p=state.profs[activeProf];
+  profMeta.innerHTML='';
+  const a=document.createElement('div');a.className='chip';
+  a.innerHTML=`<div><strong>Nome</strong><div class="small">${p.nome||'—'}</div></div>`;
+  const b=document.createElement('div');b.className='chip';
+  b.innerHTML=`<div><strong>ID</strong><div class="small">${p.id}</div></div>`;
+  const c=document.createElement('div');c.className='chip';
+  c.innerHTML=`<div><strong>Patente</strong><div class="small">${p.patente||'—'}</div></div>`;
+  profMeta.append(a,b,c);
+}
+
+/* =======================
+   Profissionais: criar/editar/remover
+======================= */
+addProfBtn.onclick=()=>{
+  const id=prompt('Identificador único (ex.: 1203):');
+  if(!id) return;
+  if(state.profs[id]) return alert('Já existe um profissional com esse ID.');
+  ensureProf(id); save(); setActiveProf(id);
+  // deixa nome vazio como pediste
+  alert('Profissional criado. Agora podes definir Nome/Patente na secção "Gestão de Profissionais" e carregar "Guardar/Atualizar".');
+};
+
+removeProfBtn.onclick=()=>{
+  if(!activeProf) return;
+  const p=state.profs[activeProf];
+  if(confirm(`Remover profissional ${p.nome||'(sem nome)'} · ${p.id}? Esta ação elimina todos os registos dele.`)){
+    delete state.profs[activeProf];
+    state.order=state.order.filter(x=>x!==activeProf);
+    save(); renderProfTabs();
+  }
+};
+
+saveProfBtn.onclick=()=>{
+  if(!activeProf){ return alert('Seleciona/cria um profissional.'); }
+  const idNew=(inId.value||'').trim() || activeProf;
+  const nome=(inNome.value||'').trim();
+  const patente=(inPatente.value||'').trim();
+
+  // mudança de ID?
+  if(idNew!==activeProf){
+    if(state.profs[idNew]) return alert('Esse ID já existe.');
+    // mover registos
+    state.profs[idNew]=state.profs[activeProf];
+    state.profs[idNew].id=idNew;
+    delete state.profs[activeProf];
+    state.order=state.order.map(x=>x===activeProf?idNew:x);
+    activeProf=idNew;
+  }
+  state.profs[activeProf].nome=nome;
+  state.profs[activeProf].patente=patente;
+  save(); renderProfTabs(); renderMeta();
+  alert('Dados do profissional guardados.');
+};
+
+/* =======================
+   Meses
+======================= */
+addMonthBtn.onclick=()=>{
+  if(!activeProf) return alert('Cria/seleciona um profissional primeiro.');
+  const ref=prompt('Novo mês (YYYY-MM), ex.: 2025-11');
+  if(!ref) return;
+  if(!/^\d{4}-\d{2}$/.test(ref)) return alert('Formato inválido.');
+  ensureMonthForProf(activeProf, ref);
+  activeMonth=ref; save(); renderMonthTabs(); renderRows(); refreshWeeks(); recomputeSums();
+};
+
+/* =======================
+   Registos
+======================= */
+addRowBtn.onclick=()=>{
+  if(!activeProf||!activeMonth) return alert('Seleciona profissional e mês.');
+  const today=new Date();
+  ensureMonthForProf(activeProf, activeMonth);
+  const row={
+    id:crypto.randomUUID(),
+    data:toYMD(new Date(today.getFullYear(), today.getMonth(), today.getDate())),
+    entrada:'09:00',
+    saida:'17:00'
+  };
+  state.profs[activeProf].meses[activeMonth].rows.push(row);
+  save(); renderRows(); recomputeSums(); refreshWeeks();
+};
+
+clearMonthBtn.onclick=()=>{
+  if(!activeProf||!activeMonth) return;
+  if(confirm('Apagar TODOS os registos deste mês do profissional ativo?')){
+    state.profs[activeProf].meses[activeMonth].rows=[];
+    save(); renderRows(); recomputeSums(); refreshWeeks();
+  }
+};
+
+function renderRows(){
+  tbody.innerHTML='';
+  if(!activeProf||!activeMonth){ return; }
+  const rows=(state.profs[activeProf].meses[activeMonth]?.rows||[]).slice().sort((a,b)=> a.data.localeCompare(b.data));
+
+  if(!rows.length){
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td colspan="5" class="small">Sem registos neste mês.</td>`;
+    tbody.appendChild(tr); return;
+  }
+
+  rows.forEach(r=>{
+    const tr=document.createElement('tr');
+
+    const tdData=document.createElement('td');
+    tdData.innerHTML=`<input type="date" value="${r.data}">`;
+    tdData.querySelector('input').onchange=(e)=>{ r.data=e.target.value; save(); recomputeSums(); refreshWeeks(); };
+
+    const tdEnt=document.createElement('td');
+    tdEnt.innerHTML=`<input type="time" value="${normTime(r.entrada)}">`;
+    tdEnt.querySelector('input').onchange=(e)=>{ r.entrada=e.target.value; save(); recomputeSums(); };
+
+    const tdSai=document.createElement('td');
+    tdSai.innerHTML=`<input type="time" value="${normTime(r.saida)}">`;
+    tdSai.querySelector('input').onchange=(e)=>{ r.saida=e.target.value; save(); recomputeSums(); };
+
+    const tdTempo=document.createElement('td');
+    tdTempo.innerHTML=`<span class="badge">${fmtMin(duracaoMin(r.entrada,r.saida))}</span>`;
+
+    const tdAcoes=document.createElement('td'); tdAcoes.style.textAlign='right';
+    tdAcoes.innerHTML=`
+      <button class="btn secondary">Duplicar</button>
+      <button class="btn danger">Remover</button>
+    `;
+    tdAcoes.children[0].onclick=()=>{
+      const clone={...r, id:crypto.randomUUID()};
+      state.profs[activeProf].meses[activeMonth].rows.push(clone);
+      save(); renderRows(); recomputeSums(); refreshWeeks();
+    };
+    tdAcoes.children[1].onclick=()=>{
+      if(confirm('Remover este registo?')){
+        state.profs[activeProf].meses[activeMonth].rows =
+          state.profs[activeProf].meses[activeMonth].rows.filter(x=>x.id!==r.id);
+        save(); renderRows(); recomputeSums(); refreshWeeks();
+      }
+    };
+
+    tr.append(tdData,tdEnt,tdSai,tdTempo,tdAcoes);
+    tbody.appendChild(tr);
+  });
+}
+
+/* =======================
+   Filtro/Soma Semanal
+======================= */
+function refreshWeeks(){
+  if(!activeProf||!activeMonth){ filterWeek.innerHTML=''; return; }
+  const rows=(state.profs[activeProf].meses[activeMonth]?.rows||[]);
+  const set=new Set(rows.map(r=>isoWeek(r.data)));
+  const arr=Array.from(set).sort();
+  filterWeek.innerHTML=`<option value="">(Seleciona semana)</option>`+arr.map(w=>`<option value="${w}">${w}</option>`).join('');
+}
+filterWeek.onchange=()=> recomputeSums();
+
+/* =======================
+   Somas
+======================= */
+function recomputeSums(){
+  if(!activeProf||!activeMonth){ sumMensal.textContent='0h 00m'; sumMensalMeta.textContent=''; sumSemanal.textContent='0h 00m'; return; }
+  const rows=(state.profs[activeProf].meses[activeMonth]?.rows||[]);
+  const totalM=rows.reduce((acc,r)=>acc+duracaoMin(r.entrada,r.saida),0);
+  sumMensal.textContent=fmtMin(totalM);
+  sumMensalMeta.textContent=labelMes(activeMonth);
+
+  const wk=filterWeek.value||null;
+  const totalW=rows.filter(r=>!wk || isoWeek(r.data)===wk)
+                   .reduce((a,r)=>a+duracaoMin(r.entrada,r.saida),0);
+  sumSemanal.textContent=fmtMin(totalW);
+}
+
+/* =======================
+   Exportar CSV
+======================= */
+exportCsvBtn.onclick=()=>{
+  if(!activeProf||!activeMonth) return;
+  const p=state.profs[activeProf];
+  const rows=(p.meses[activeMonth]?.rows||[]).slice().sort((a,b)=>a.data.localeCompare(b.data));
+  const header=['ProfID','Nome','Patente','MesRef','Data','Entrada','Saida','TempoMin'];
+  const lines=[header.join(',')];
+  rows.forEach(r=>{
+    const mins=duracaoMin(r.entrada,r.saida);
+    lines.push([p.id,p.nome||'',p.patente||'',activeMonth,r.data,r.entrada,r.saida,mins]
+      .map(v=>`"${String(v??'').replaceAll('"','""')}"`).join(','));
+  });
+  const blob=new Blob([lines.join('\n')],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=`Horas_${p.id}_${activeMonth}.csv`; a.click();
+  URL.revokeObjectURL(url);
+};
+
+/* =======================
+   Boot
+======================= */
+(function boot(){
+  // Se não houver nenhum profissional, fica vazio (como pediste).
+  renderProfTabs();
+  // Se existir alguém guardado, seleciona o primeiro
+  if(state.order.length){ setActiveProf(state.order[0]); }
+})();
+</script>
+</body>
+</html>
